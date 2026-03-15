@@ -40,7 +40,7 @@ const STATUS_LABELS: Record<OverloadTarget['status'], string> = {
 }
 
 const STATUS_TOOLTIPS: Record<OverloadTarget['status'], string> = {
-  increase_weight: 'You hit your target reps on all sets last session. Add 2.5kg next time and aim for the same rep count.',
+  increase_weight: 'You hit your target reps on all sets last session. The suggested increment is based on the type of lift — smaller jumps for isolation work, larger for compounds and machines.',
   increase_reps:   'You got close to your target reps but not all sets. Keep the same weight and aim to complete every set before adding load.',
   maintain:        'Reps were well below target last session. Focus on consistency and technique at this weight before progressing.',
 }

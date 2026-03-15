@@ -108,6 +108,30 @@ const TRACKED_EXERCISES: Record<string, number> = {
   'Hammer Curl (Dumbbell)':                  12,
 }
 
+// Weight increment per exercise — based on realistic equipment jumps:
+// Barbell: 2.5kg | Dumbbell compound: 2.5kg | Machine/Cable: 5kg | Light isolation: 1.25kg
+const WEIGHT_INCREMENT: Record<string, number> = {
+  'Squat (Barbell)':                          2.5,
+  'Bent Over Row (Barbell)':                  2.5,
+  'Pendlay Row (Barbell)':                    2.5,
+  'Bench Press (Dumbbell)':                   2.5,
+  'Incline Bench Press (Dumbbell)':           2.5,
+  'Seated Overhead Press (Dumbbell)':         2.5,
+  'Pec Deck (Machine)':                       5,
+  'Seated Leg Press (Machine)':               5,
+  'Lat Pulldown (Cable)':                     5,
+  'Seated Row (Cable)':                       5,
+  'Seated Row (Machine)':                     5,
+  'Leg Extension (Machine)':                  5,
+  'Lying Leg Curl (Machine)':                 5,
+  'Lateral Raise (Dumbbell)':                 1.25,
+  'Bicep Curl (Cable)':                       2.5,
+  'Triceps Pushdown (Cable - Straight Bar)':  2.5,
+  'Triceps Extension':                        2.5,
+  'Face Pull (Cable)':                        2.5,
+  'Hammer Curl (Dumbbell)':                   2.5,
+}
+
 // ── Progressive overload ─────────────────────────────────────────────────────
 
 export function computeOverloadTargets(
@@ -150,8 +174,9 @@ export function computeOverloadTargets(
     let message:      string
 
     if (allHitReps) {
+      const increment = WEIGHT_INCREMENT[liftName] ?? 2.5
       status       = 'increase_weight'
-      targetWeight = topWeight + 2.5
+      targetWeight = topWeight + increment
       message      = `Hit all reps at ${topWeight}kg — go for ${targetWeight}kg next session`
     } else if (avgReps >= targetReps * 0.8) {
       status       = 'increase_reps'
