@@ -2,58 +2,68 @@
 
 import { useMemo } from 'react'
 import type { FitnessData } from '@/lib/sheets'
+import type { StreakData, VolumeBalance } from '@/lib/insights'
 import MetricCard from './MetricCard'
 import PRList from './PRlist'
 import LiftProgression from './LiftProgression'
+import VolumeSplit from './VolumeSplit'
 
 interface DashboardProps {
-  data: FitnessData
+  data:          FitnessData
+  streak:        StreakData
+  volumeBalance: VolumeBalance
 }
 
-function workoutColor(type: string) {
-  if (type.includes('push')) return 'rgba(232,93,36,0.75)'
-  if (type.includes('pull')) return 'rgba(59,139,212,0.75)'
-  if (type.includes('legs')) return 'rgba(29,158,117,0.75)'
-  return 'rgba(136,135,128,0.55)'
-}
-
-export default function Dashboard({ data }: DashboardProps) {
+export default function Dashboard({ data, streak, volumeBalance }: DashboardProps) {
   const { workouts, exercises, sets } = data
 
-  const now = new Date()
+  const now       = new Date()
   const thisMonth = now.getMonth()
   const thisYear  = now.getFullYear()
   const monthName = now.toLocaleString('en-GB', { month: 'long' })
 
   const workoutsThisMonth = useMemo(
-    () =>
-      workouts.filter(w => {
-        const d = new Date(w.date)
-        return d.getMonth() === thisMonth && d.getFullYear() === thisYear
-      }).length,
+    () => workouts.filter(w => {
+      const d = new Date(w.date)
+      return d.getMonth() === thisMonth && d.getFullYear() === thisYear
+    }).length,
     [workouts, thisMonth, thisYear]
   )
+
+  const streakColor =
+    streak.status === 'on_track' ? 'var(--color-success)' :
+    streak.status === 'warning'  ? 'var(--color-warning)' :
+    'var(--color-danger)'
 
   return (
     <div className="dash">
 
-      {/* ── Top metrics ── */}
-      <div className="top-row">
+      <div className="top-row top-row--3">
         <MetricCard
           label="This month"
           value={workoutsThisMonth}
           sub={`${monthName} workouts`}
         />
         <MetricCard
-          label="Total sets"
-          value={sets.length.toLocaleString()}
-          sub="all time"
+          label="Current streak"
+          value={`${streak.currentStreak}w`}
+          sub={streak.message}
+          valueColor={streakColor}
+        />
+        <MetricCard
+          label="Days since last"
+          value={`${streak.daysSinceLast}d`}
+          sub={streak.lastWorkout !== '—'
+            ? new Date(streak.lastWorkout).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+            : '—'}
+          valueColor={streakColor}
         />
       </div>
 
-      {/* ── Main content ── */}
+      <LiftProgression workouts={workouts} sets={sets} exercises={exercises} />
+
       <div className="two-col">
-        <LiftProgression workouts={workouts} sets={sets} exercises={exercises} />
+        <VolumeSplit volumeBalance={volumeBalance} />
         <div className="card">
           <p className="card-title">Personal records</p>
           <PRList sets={sets} exercises={exercises} />

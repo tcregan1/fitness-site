@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { DM_Sans, DM_Mono } from 'next/font/google'
+import Navbar from '@/components/Navbar'
 import './globals.css'
 
 const dmSans = DM_Sans({
@@ -22,7 +23,12 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${dmSans.variable} ${dmMono.variable}`}>
-      <body>{children}</body>
+      <body>
+        <Navbar />
+        <div className="page-wrap">
+          {children}
+        </div>
+      </body>
     </html>
   )
 }
