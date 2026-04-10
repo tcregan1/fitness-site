@@ -445,9 +445,13 @@ export default function InsightsClient({ workouts, sets, exercises }: InsightsCl
               </div>
             </div>
 
-            {/* Graph grid */}
+            {/* Graph grid — visible first, hidden sink to bottom */}
             <div className="exercise-graph-grid">
-              {exs.map(e => (
+              {[...exs].sort((a, b) => {
+                const aVis = visibility[a.id] !== false ? 0 : 1
+                const bVis = visibility[b.id] !== false ? 0 : 1
+                return aVis - bVis
+              }).map(e => (
                 <ExerciseGraph
                   key={e.id}
                   exercise={e}
