@@ -2,53 +2,88 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { Chart, registerables } from 'chart.js'
-import type { InsightsData, WorkoutCategory, OverloadTarget } from '@/lib/insights'
 import type { Workout, ExerciseSet, Exercise } from '@/lib/sheets'
 
 Chart.register(...registerables)
 
-interface InsightsClientProps {
-  insights:  InsightsData
-  workouts:  Workout[]
-  sets:      ExerciseSet[]
-  exercises: Exercise[]
-}
+// ── PPL category mapping ──────────────────────────────────────────────────────
+// Exercises are bucketed by name. Anything not listed falls into a catch-all
+// that is inferred from the workout type it most commonly appears in.
 
-const CATEGORY_TABS: { label: string; value: WorkoutCategory | 'all' }[] = [
-  { label: 'All',  value: 'all'  },
-  { label: 'Push', value: 'push' },
-  { label: 'Pull', value: 'pull' },
-  { label: 'Legs', value: 'legs' },
-]
+const PUSH_EXERCISES = new Set([
+  'Incline Bench Press (Dumbbell)',
+  'Bench Press (Dumbbell)',
+  'Bench Press (Barbell)',
+  'Pec Deck (Machine)',
+  'Chest Fly (Dumbbell)',
+  'Chest Fly (Cable)',
+  'Chest Press (Machine)',
+  'Seated Overhead Press (Dumbbell)',
+  'Overhead Press (Barbell)',
+  'Lateral Raise (Dumbbell)',
+  'Lateral Raise (Cable)',
+  'Front Raise (Dumbbell)',
+  'Tricep Pushdown (Cable)',
+  'Tricep Extension (Dumbbell)',
+  'Skull Crusher (Barbell)',
+  'Dip (Bodyweight)',
+  'Push Up (Bodyweight)',
+])
 
-const CATEGORY_LIFTS: Record<WorkoutCategory, string[]> = {
-  push: ['Incline Bench Press (Dumbbell)', 'Bench Press (Dumbbell)', 'Pec Deck (Machine)', 'Seated Overhead Press (Dumbbell)', 'Lateral Raise (Dumbbell)'],
-  pull: ['Pendlay Row (Barbell)', 'Bent Over Row (Barbell)', 'Lat Pulldown (Cable)', 'Seated Row (Machine)', 'Seated Row (Cable)'],
-  legs: ['Squat (Barbell)', 'Seated Leg Press (Machine)', 'Leg Extension (Machine)', 'Lying Leg Curl (Machine)'],
-}
+const PULL_EXERCISES = new Set([
+  'Pendlay Row (Barbell)',
+  'Bent Over Row (Barbell)',
+  'Bent Over Row (Dumbbell)',
+  'Lat Pulldown (Cable)',
+  'Seated Row (Cable)',
+  'Seated Row (Machine)',
+  'Face Pull (Cable)',
+  'Reverse Fly (Dumbbell)',
+  'Reverse Fly (Machine)',
+  'Pull Up (Bodyweight)',
+  'Chin Up (Bodyweight)',
+  'Shrug (Dumbbell)',
+  'Shrug (Barbell)',
+  'Bicep Curl (Dumbbell)',
+  'Bicep Curl (Barbell)',
+  'Bicep Curl (Cable)',
+  'Hammer Curl (Dumbbell)',
+  'Preacher Curl (Machine)',
+])
 
-const STATUS_COLORS: Record<OverloadTarget['status'], string> = {
-  increase_weight: 'var(--color-success)',
-  increase_reps:   'var(--color-warning)',
-  maintain:        'var(--text-tertiary)',
-}
+const LEGS_EXERCISES = new Set([
+  'Squat (Barbell)',
+  'Front Squat (Barbell)',
+  'Seated Leg Press (Machine)',
+  'Leg Extension (Machine)',
+  'Lying Leg Curl (Machine)',
+  'Seated Leg Curl (Machine)',
+  'Romanian Deadlift (Barbell)',
+  'Romanian Deadlift (Dumbbell)',
+  'Hip Thrust (Barbell)',
+  'Hip Thrust (Machine)',
+  'Calf Raise (Machine)',
+  'Calf Raise (Dumbbell)',
+  'Hack Squat (Machine)',
+  'Bulgarian Split Squat (Dumbbell)',
+  'Lunge (Dumbbell)',
+  'Leg Abduction (Machine)',
+  'Leg Adduction (Machine)',
+  'Glute Kickback (Machine)',
+])
 
-const STATUS_LABELS: Record<OverloadTarget['status'], string> = {
-  increase_weight: 'Add weight',
-  increase_reps:   'Add reps',
-  maintain:        'Maintain',
-}
+type PPLCategory = 'push' | 'pull' | 'legs'
 
-const STATUS_TOOLTIPS: Record<OverloadTarget['status'], string> = {
-  increase_weight: 'You hit your target reps on all sets last session. The suggested increment is based on the type of lift — smaller jumps for isolation work, larger for compounds and machines.',
-  increase_reps:   'You got close to your target reps but not all sets. Keep the same weight and aim to complete every set before adding load.',
-  maintain:        'Reps were well below target last session. Focus on consistency and technique at this weight before progressing.',
-}
-
-const CATEGORY_ACCENT: Record<WorkoutCategory, string> = {
+const CATEGORY_ACCENT: Record<PPLCategory, string> = {
   push: '#E85D24',
   pull: '#3B8BD4',
   legs: '#1D9E75',
+}
+
+const CATEGORY_LABEL: Record<PPLCategory, string> = {
+  push: 'Push',
+  pull: 'Pull',
+  legs: 'Legs',
 }
 
 const TIME_FILTERS = [
@@ -62,64 +97,126 @@ function fmtDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
 }
 
-// ── Info tooltip ──────────────────────────────────────────────────────────────
-
-function InfoTooltip({ text }: { text: string }) {
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!open) return
-    const handle = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
-    }
-    document.addEventListener('mousedown', handle)
-    return () => document.removeEventListener('mousedown', handle)
-  }, [open])
-
-  return (
-    <div className="tooltip-wrap" ref={ref}>
-      <button className="tooltip-trigger" onClick={() => setOpen(o => !o)} aria-label="More info">ⓘ</button>
-      {open && <div className="tooltip-box">{text}</div>}
-    </div>
-  )
+function shortName(name: string) {
+  return name.replace(/\s*\(.*?\)/g, '')
 }
 
-// ── Mini lift chart ───────────────────────────────────────────────────────────
+// ── Infer category from workout type associations ─────────────────────────────
 
-function MiniChart({ liftName, workouts, sets, exercises, timeFilter, accent }: {
-  liftName: string; workouts: Workout[]; sets: ExerciseSet[]
-  exercises: Exercise[]; timeFilter: TimeFilter; accent: string
+function inferCategory(
+  exerciseId: number,
+  sets: ExerciseSet[],
+  workouts: Workout[],
+): PPLCategory | null {
+  const workoutMap = new Map(workouts.map(w => [w.id, w.type]))
+  const counts: Record<PPLCategory, number> = { push: 0, pull: 0, legs: 0 }
+  sets.forEach(s => {
+    if (s.exerciseId !== exerciseId) return
+    const type = workoutMap.get(s.workoutId) ?? ''
+    if (type.includes('push')) counts.push++
+    else if (type.includes('pull')) counts.pull++
+    else if (type.includes('legs')) counts.legs++
+  })
+  const max = Math.max(counts.push, counts.pull, counts.legs)
+  if (max === 0) return null
+  if (counts.push === max) return 'push'
+  if (counts.pull === max) return 'pull'
+  return 'legs'
+}
+
+// ── Deduplication ─────────────────────────────────────────────────────────────
+// Some exercises appear twice with different IDs (e.g. Seated Row x2).
+// Keep the ID with the most set records; merge the rest under that ID.
+
+function deduplicateExercises(
+  exercises: Exercise[],
+  sets: ExerciseSet[],
+): { exercises: Exercise[]; sets: ExerciseSet[] } {
+  // Group by normalised name
+  const groups: Record<string, Exercise[]> = {}
+  exercises.forEach(e => {
+    const key = e.name.trim().toLowerCase()
+    if (!groups[key]) groups[key] = []
+    groups[key].push(e)
+  })
+
+  const idRemap = new Map<number, number>() // old id → canonical id
+
+  const dedupedExercises: Exercise[] = []
+  Object.values(groups).forEach(group => {
+    if (group.length === 1) {
+      dedupedExercises.push(group[0])
+      return
+    }
+    // Pick the one with the most sets as the canonical
+    const counts = group.map(e => ({ e, count: sets.filter(s => s.exerciseId === e.id).length }))
+    counts.sort((a, b) => b.count - a.count)
+    const canonical = counts[0].e
+    dedupedExercises.push(canonical)
+    counts.slice(1).forEach(({ e }) => idRemap.set(e.id, canonical.id))
+  })
+
+  const dedupedSets = sets.map(s => {
+    const remapped = idRemap.get(s.exerciseId)
+    return remapped ? { ...s, exerciseId: remapped } : s
+  })
+
+  return { exercises: dedupedExercises, sets: dedupedSets }
+}
+
+// ── Individual graph card ─────────────────────────────────────────────────────
+
+function ExerciseGraph({
+  exercise,
+  workouts,
+  sets,
+  timeFilter,
+  accent,
+  visible,
+  onToggle,
+}: {
+  exercise: Exercise
+  workouts: Workout[]
+  sets: ExerciseSet[]
+  timeFilter: TimeFilter
+  accent: string
+  visible: boolean
+  onToggle: () => void
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const chartRef  = useRef<Chart | null>(null)
 
-  const exerciseId = useMemo(() => exercises.find(e => e.name === liftName)?.id, [exercises, liftName])
-
   const chartData = useMemo(() => {
-    if (!exerciseId) return { labels: [], data: [] }
     const cutoff = timeFilter.months ? new Date() : null
     if (cutoff) cutoff.setMonth(cutoff.getMonth() - timeFilter.months!)
-    const filtered = cutoff ? workouts.filter(w => new Date(w.date) >= cutoff!) : workouts
+    const filtered = cutoff
+      ? workouts.filter(w => new Date(w.date) >= cutoff!)
+      : workouts
+
     const best: Record<number, number> = {}
     sets.forEach(s => {
-      if (s.exerciseId === exerciseId && (!best[s.workoutId] || s.weight > best[s.workoutId]))
+      if (s.exerciseId !== exercise.id) return
+      if (!best[s.workoutId] || s.weight > best[s.workoutId])
         best[s.workoutId] = s.weight
     })
+
     const pts = [...filtered]
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       .filter(w => best[w.id] !== undefined)
       .map(w => ({ label: fmtDate(w.date), value: best[w.id] }))
+
     return { labels: pts.map(p => p.label), data: pts.map(p => p.value) }
-  }, [exerciseId, workouts, sets, timeFilter])
+  }, [exercise.id, workouts, sets, timeFilter])
 
   useEffect(() => {
-    if (!canvasRef.current || !chartData.data.length) return
+    if (!canvasRef.current || !chartData.data.length || !visible) return
     const isDark    = window.matchMedia('(prefers-color-scheme: dark)').matches
     const gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'
     const tickColor = isDark ? '#9c9a92' : '#73726c'
     const pointBg   = isDark ? '#242420' : '#ffffff'
+
     if (chartRef.current) chartRef.current.destroy()
+
     const vals = chartData.data
     chartRef.current = new Chart(canvasRef.current, {
       type: 'line',
@@ -128,7 +225,7 @@ function MiniChart({ liftName, workouts, sets, exercises, timeFilter, accent }: 
         datasets: [{
           data: vals,
           borderColor: accent,
-          backgroundColor: accent + '12',
+          backgroundColor: accent + '15',
           borderWidth: 2,
           pointRadius: 4,
           pointBackgroundColor: accent,
@@ -139,224 +236,233 @@ function MiniChart({ liftName, workouts, sets, exercises, timeFilter, accent }: 
         }],
       },
       options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${ctx.raw} kg` } } },
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: ctx => ` ${ctx.raw} kg` } },
+        },
         scales: {
-          x: { ticks: { color: tickColor, font: { size: 10 }, autoSkip: true, maxTicksLimit: 5, maxRotation: 0 }, grid: { display: false }, border: { display: false } },
-          y: { suggestedMin: Math.min(...vals) - 4, suggestedMax: Math.max(...vals) + 4, ticks: { color: tickColor, font: { size: 10 }, callback: v => `${v}kg` }, grid: { color: gridColor }, border: { display: false } },
+          x: {
+            ticks: { color: tickColor, font: { size: 10 }, autoSkip: true, maxTicksLimit: 6, maxRotation: 0 },
+            grid: { display: false },
+            border: { display: false },
+          },
+          y: {
+            suggestedMin: Math.min(...vals) - 4,
+            suggestedMax: Math.max(...vals) + 4,
+            ticks: { color: tickColor, font: { size: 10 }, callback: v => `${v}kg` },
+            grid: { color: gridColor },
+            border: { display: false },
+          },
         },
       },
     })
     return () => { chartRef.current?.destroy() }
-  }, [chartData, accent])
+  }, [chartData, accent, visible])
 
-  if (!chartData.data.length) return null
+  const hasData = chartData.data.length > 0
+  const pr      = hasData ? Math.max(...chartData.data) : null
 
   return (
-    <div className="mini-chart-card">
-      <p className="mini-chart-title">{liftName.replace(/\s*\(.*?\)/g, '')}</p>
-      <div className="mini-chart-wrap"><canvas ref={canvasRef} /></div>
+    <div className={`exercise-graph-card ${!visible ? 'graph-hidden' : ''}`}>
+      {/* Header row */}
+      <div className="graph-card-header">
+        <div className="graph-card-title-group">
+          <p className="graph-card-title">{shortName(exercise.name)}</p>
+          {pr !== null && visible && (
+            <span className="graph-card-pr" style={{ color: accent }}>PR {pr}kg</span>
+          )}
+        </div>
+        <button
+          className={`graph-visibility-btn ${visible ? 'shown' : 'hidden'}`}
+          onClick={onToggle}
+          aria-label={visible ? 'Hide graph' : 'Show graph'}
+          title={visible ? 'Hide' : 'Show'}
+        >
+          {visible ? (
+            // Eye open
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          ) : (
+            // Eye off
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+              <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+              <line x1="1" y1="1" x2="23" y2="23"/>
+            </svg>
+          )}
+        </button>
+      </div>
+
+      {/* Chart area — only rendered when visible */}
+      {visible && (
+        <div className="graph-chart-area">
+          {!hasData ? (
+            <div className="graph-empty">No data for this period</div>
+          ) : (
+            <div className="graph-canvas-wrap">
+              <canvas ref={canvasRef} />
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────────
 
-export default function InsightsClient({ insights, workouts, sets, exercises }: InsightsClientProps) {
-  const { overloadTargets, streak } = insights
-  const [activeTab,  setActiveTab]  = useState<WorkoutCategory | 'all'>('all')
+interface InsightsClientProps {
+  workouts:  Workout[]
+  sets:      ExerciseSet[]
+  exercises: Exercise[]
+}
+
+export default function InsightsClient({ workouts, sets, exercises }: InsightsClientProps) {
   const [timeFilter, setTimeFilter] = useState<TimeFilter>(TIME_FILTERS[2])
 
-  const filteredTargets = activeTab === 'all'
-    ? overloadTargets
-    : overloadTargets.filter(t => t.category === activeTab)
+  // Deduplicate exercises & remap sets
+  const { exercises: dedupExercises, sets: dedupSets } = useMemo(
+    () => deduplicateExercises(exercises, sets),
+    [exercises, sets]
+  )
 
-  const graphCategories: WorkoutCategory[] =
-    activeTab === 'all' ? ['push', 'pull', 'legs'] : [activeTab]
+  // Categorise each exercise
+  const categorised = useMemo<Record<PPLCategory, Exercise[]>>(() => {
+    const result: Record<PPLCategory, Exercise[]> = { push: [], pull: [], legs: [] }
 
-  // ── Build 3 meaningful insight cards ──────────────────────────────────────
+    dedupExercises.forEach(e => {
+      // Check explicit map first
+      const name = e.name
+      let cat: PPLCategory | null = null
+      if (PUSH_EXERCISES.has(name)) cat = 'push'
+      else if (PULL_EXERCISES.has(name)) cat = 'pull'
+      else if (LEGS_EXERCISES.has(name)) cat = 'legs'
+      else cat = inferCategory(e.id, dedupSets, workouts)
 
-  // Card 1: Most ready to progress (highest priority overload target)
-  const nextUp = overloadTargets.find(t => t.status === 'increase_weight')
-    ?? overloadTargets.find(t => t.status === 'increase_reps')
+      if (!cat) return
 
-  // Card 2: Weakest lift — the one with the biggest gap between current weight and where it should be
-  // Proxy: maintain status + lowest weight relative to its own PR
-  const weakest = [...overloadTargets]
-    .filter(t => t.status === 'maintain')
-    .sort((a, b) => (a.targetWeight / a.currentPR) - (b.targetWeight / b.currentPR))[0]
-    ?? overloadTargets.find(t => t.status === 'increase_reps')
+      // Only include if this exercise actually has data
+      const hasData = dedupSets.some(s => s.exerciseId === e.id)
+      if (!hasData) return
 
-  // Card 3: Which category hasn't been trained recently
-  const sortedWorkouts = [...workouts].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-  const lastPush = sortedWorkouts.find(w => w.type.includes('push'))
-  const lastPull = sortedWorkouts.find(w => w.type.includes('pull'))
-  const lastLegs = sortedWorkouts.find(w => w.type.includes('legs'))
+      result[cat].push(e)
+    })
 
-  function daysSince(w: typeof lastPush) {
-    if (!w) return 999
-    return Math.floor((Date.now() - new Date(w.date).getTime()) / 86400000)
+    // Sort each category alphabetically by short name
+    ;(['push', 'pull', 'legs'] as PPLCategory[]).forEach(cat => {
+      result[cat].sort((a, b) => shortName(a.name).localeCompare(shortName(b.name)))
+    })
+
+    return result
+  }, [dedupExercises, dedupSets, workouts])
+
+  // Visibility state keyed by exercise id
+  const [visibility, setVisibility] = useState<Record<number, boolean>>({})
+
+  // Initialise visibility once exercises are known
+  useEffect(() => {
+    setVisibility(prev => {
+      const next = { ...prev }
+      dedupExercises.forEach(e => {
+        if (next[e.id] === undefined) next[e.id] = true
+      })
+      return next
+    })
+  }, [dedupExercises])
+
+  const toggleVisibility = (id: number) => {
+    setVisibility(prev => ({ ...prev, [id]: !prev[id] }))
   }
 
-  const pushDays = daysSince(lastPush)
-  const pullDays = daysSince(lastPull)
-  const legsDays = daysSince(lastLegs)
+  const toggleAll = (cat: PPLCategory, show: boolean) => {
+    setVisibility(prev => {
+      const next = { ...prev }
+      categorised[cat].forEach(e => { next[e.id] = show })
+      return next
+    })
+  }
 
-  const neglectedCat = pushDays >= pullDays && pushDays >= legsDays ? { name: 'Push', days: pushDays, color: CATEGORY_ACCENT.push } :
-                       pullDays >= legsDays ? { name: 'Pull', days: pullDays, color: CATEGORY_ACCENT.pull } :
-                       { name: 'Legs', days: legsDays, color: CATEGORY_ACCENT.legs }
-
-  const neglectedMsg = neglectedCat.days > 6
-    ? `Your last ${neglectedCat.name.toLowerCase()} session was ${neglectedCat.days} days ago. Schedule one soon to keep your split balanced.`
-    : `Your ${neglectedCat.name.toLowerCase()} session was ${neglectedCat.days} days ago — you're on track.`
-
-  const neglectedAccent = neglectedCat.days > 6 ? 'var(--color-warning)' : 'var(--color-success)'
+  const categories: PPLCategory[] = ['push', 'pull', 'legs']
 
   return (
     <div className="page-content">
 
-      {/* ── Top 3 insight cards ── */}
-      <div className="top-insights-grid">
-
-        {nextUp && (
-          <div className="insight-card" style={{ borderTopColor: STATUS_COLORS[nextUp.status] }}>
-            <div className="insight-card-header">
-              <p className="insight-card-label">Up next</p>
-              <InfoTooltip text={STATUS_TOOLTIPS[nextUp.status]} />
-            </div>
-            <p className="insight-card-value" style={{ color: STATUS_COLORS[nextUp.status] }}>
-              {nextUp.targetWeight}kg
-            </p>
-            <p className="insight-card-name">{nextUp.exerciseName.replace(/\s*\(.*?\)/g, '')}</p>
-            <p className="insight-card-body">{nextUp.message}</p>
-          </div>
-        )}
-
-        {weakest && weakest.exerciseName !== nextUp?.exerciseName && (
-          <div className="insight-card" style={{ borderTopColor: 'var(--color-danger)' }}>
-            <div className="insight-card-header">
-              <p className="insight-card-label">Needs work</p>
-              <InfoTooltip text="This lift is furthest from progression. Focus on form and consistency before adding weight." />
-            </div>
-            <p className="insight-card-value" style={{ color: 'var(--color-danger)' }}>
-              {weakest.targetWeight}kg
-            </p>
-            <p className="insight-card-name">{weakest.exerciseName.replace(/\s*\(.*?\)/g, '')}</p>
-            <p className="insight-card-body">{weakest.message}</p>
-          </div>
-        )}
-
-        <div className="insight-card" style={{ borderTopColor: neglectedAccent }}>
-          <div className="insight-card-header">
-            <p className="insight-card-label">{neglectedCat.name} session</p>
-            <InfoTooltip text="Tracks how many days since your last push, pull and legs session, and flags the one you've left longest." />
-          </div>
-          <p className="insight-card-value" style={{ color: neglectedAccent }}>
-            {neglectedCat.days}d ago
-          </p>
-          <p className="insight-card-name">
-            {streak.daysSinceLast === 0 ? 'Trained today' : `Last session ${fmtDate(streak.lastWorkout)}`}
-          </p>
-          <p className="insight-card-body">{neglectedMsg}</p>
+      {/* ── Global time filter ── */}
+      <div className="insights-top-bar">
+        <h1 className="insights-page-title">Exercise Graphs</h1>
+        <div className="toggle-group">
+          {TIME_FILTERS.map(tf => (
+            <button
+              key={tf.label}
+              className={`toggle-btn ${timeFilter.label === tf.label ? 'active' : ''}`}
+              onClick={() => setTimeFilter(tf)}
+            >
+              {tf.label}
+            </button>
+          ))}
         </div>
-
       </div>
 
-      {/* ── Progressive overload targets ── */}
-      <section className="insights-section">
-        <div className="overload-header-row">
-          <h2 className="section-title" style={{ marginBottom: 0 }}>Progressive overload targets</h2>
-          <div className="category-tabs">
-            {CATEGORY_TABS.map(tab => (
-              <button
-                key={tab.value}
-                className={`category-tab ${activeTab === tab.value ? 'active' : ''} ${tab.value !== 'all' ? tab.value : ''}`}
-                onClick={() => setActiveTab(tab.value)}
-              >
-                {tab.label}
-                <span className="tab-count">
-                  {tab.value === 'all'
-                    ? overloadTargets.length
-                    : overloadTargets.filter(t => t.category === tab.value).length}
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
+      {/* ── PPL sections ── */}
+      {categories.map(cat => {
+        const exs      = categorised[cat]
+        if (exs.length === 0) return null
+        const accent   = CATEGORY_ACCENT[cat]
+        const allShown = exs.every(e => visibility[e.id] !== false)
+        const anyShown = exs.some(e => visibility[e.id] !== false)
 
-        <div className="overload-list">
-          {filteredTargets.length === 0 && (
-            <p className="empty-state">No exercises for this category yet.</p>
-          )}
-          {filteredTargets.map(target => {
-            const shortName   = target.exerciseName.replace(/\s*\(.*?\)/g, '')
-            const statusColor = STATUS_COLORS[target.status]
-            return (
-              <div key={target.exerciseName} className="overload-card">
-                <div className="overload-top">
-                  <div className="overload-left">
-                    <p className="overload-name">{shortName}</p>
-                    <p className="overload-message">{target.message}</p>
-                  </div>
-                  <div className="overload-right">
-                    <p className="overload-target" style={{ color: statusColor }}>{target.targetWeight}kg</p>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span className="overload-badge" style={{ color: statusColor, borderColor: statusColor }}>
-                        {STATUS_LABELS[target.status]}
-                      </span>
-                      <InfoTooltip text={STATUS_TOOLTIPS[target.status]} />
-                    </div>
-                  </div>
-                </div>
-                <div className="overload-meta">
-                  <span>PR: {target.currentPR}kg</span>
-                  <span>Target: {target.targetReps} reps</span>
-                  <span>Last: {new Date(target.lastSession).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span>
-                </div>
+        return (
+          <section key={cat} className="insights-graph-section">
+            {/* Section header */}
+            <div className="graph-section-header">
+              <div className="graph-section-title-row">
+                <span className="graph-section-dot" style={{ background: accent }} />
+                <h2 className="graph-section-title" style={{ color: accent }}>
+                  {CATEGORY_LABEL[cat]}
+                </h2>
+                <span className="graph-section-count">{exs.length} exercises</span>
               </div>
-            )
-          })}
-        </div>
-      </section>
+              {/* Bulk show/hide */}
+              <div className="graph-section-bulk">
+                <button
+                  className="graph-bulk-btn"
+                  onClick={() => toggleAll(cat, true)}
+                  disabled={allShown}
+                >
+                  Show all
+                </button>
+                <button
+                  className="graph-bulk-btn"
+                  onClick={() => toggleAll(cat, false)}
+                  disabled={!anyShown}
+                >
+                  Hide all
+                </button>
+              </div>
+            </div>
 
-      {/* ── Lift progression graphs ── */}
-      <section className="insights-section">
-        <div className="overload-header-row">
-          <h2 className="section-title" style={{ marginBottom: 0 }}>Lift progression</h2>
-          <div className="toggle-group">
-            {TIME_FILTERS.map(tf => (
-              <button
-                key={tf.label}
-                className={`toggle-btn ${timeFilter.label === tf.label ? 'active' : ''}`}
-                onClick={() => setTimeFilter(tf)}
-              >
-                {tf.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {graphCategories.map(cat => (
-          <div key={cat} className="category-graph-group">
-            <p className="category-graph-label" style={{ color: CATEGORY_ACCENT[cat] }}>
-              {cat.charAt(0).toUpperCase() + cat.slice(1)}
-            </p>
-            <div className="mini-charts-grid">
-              {CATEGORY_LIFTS[cat].map(liftName => (
-                <MiniChart
-                  key={liftName}
-                  liftName={liftName}
+            {/* Graph grid */}
+            <div className="exercise-graph-grid">
+              {exs.map(e => (
+                <ExerciseGraph
+                  key={e.id}
+                  exercise={e}
                   workouts={workouts}
-                  sets={sets}
-                  exercises={exercises}
+                  sets={dedupSets}
                   timeFilter={timeFilter}
-                  accent={CATEGORY_ACCENT[cat]}
+                  accent={accent}
+                  visible={visibility[e.id] !== false}
+                  onToggle={() => toggleVisibility(e.id)}
                 />
               ))}
             </div>
-          </div>
-        ))}
-      </section>
+          </section>
+        )
+      })}
 
     </div>
   )
