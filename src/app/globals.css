@@ -752,6 +752,76 @@ body {
   color: var(--text-primary);
 }
 
+/* ── Recent sessions ─────────────────────────────── */
+.recent-sessions {
+  display: flex;
+  flex-direction: column;
+}
+
+.recent-session-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 0.5px solid var(--border);
+}
+
+.recent-session-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.recent-session-row:first-child {
+  padding-top: 0;
+}
+
+.recent-session-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.recent-session-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.recent-session-type {
+  font-size: 13px;
+  font-weight: 500;
+  text-transform: capitalize;
+  line-height: 1;
+}
+
+.recent-session-date {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.recent-session-stats {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.recent-session-vol {
+  font-size: 13px;
+  font-weight: 500;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+}
+
+.recent-session-sets {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+}
+
 /* ── Insights graphs page ────────────────────────────────────────────────────── */
 
 .insights-top-bar {
