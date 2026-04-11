@@ -1,8 +1,10 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap');
 /* ── Reset ───────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 /* ── Google Fonts: Bebas Neue for display text ───── */
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap');
+
 
 /* ── Tokens ──────────────────────────────────────── */
 :root {
