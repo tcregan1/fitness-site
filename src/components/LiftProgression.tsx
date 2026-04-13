@@ -95,16 +95,24 @@ export default function LiftProgression({ workouts, sets, exercises }: LiftProgr
   useEffect(() => {
     if (!canvasRef.current) return
 
-    const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+    // Destroy BEFORE creating — prevents the cleanup killing the new instance
+    if (chartRef.current) {
+      chartRef.current.destroy()
+      chartRef.current = null
+    }
+
+    const vals = chartData.data
+    if (vals.length === 0) return
+
+    const isDark =
+      document.documentElement.classList.contains('dark') ||
+      window.matchMedia('(prefers-color-scheme: dark)').matches
     const gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'
     const tickColor = isDark ? '#9c9a92' : '#73726c'
     const pointBg   = isDark ? '#1a1a18' : '#ffffff'
 
-    if (chartRef.current) chartRef.current.destroy()
-
-    const vals = chartData.data
-    const min = vals.length ? Math.min(...vals) : 0
-    const max = vals.length ? Math.max(...vals) : 10
+    const min = Math.min(...vals)
+    const max = Math.max(...vals)
 
     chartRef.current = new Chart(canvasRef.current, {
       type: 'line',
@@ -136,7 +144,13 @@ export default function LiftProgression({ workouts, sets, exercises }: LiftProgr
         },
         scales: {
           x: {
-            ticks: { color: tickColor, font: { size: 11 }, autoSkip: false, maxRotation: 30 },
+            ticks: {
+              color: tickColor,
+              font: { size: 11 },
+              autoSkip: true,      // was false — caused overflow with more data points
+              maxTicksLimit: 10,   // cap labels so they don't crash the render
+              maxRotation: 30,
+            },
             grid: { display: false },
             border: { display: false },
           },
@@ -153,6 +167,7 @@ export default function LiftProgression({ workouts, sets, exercises }: LiftProgr
 
     return () => {
       chartRef.current?.destroy()
+      chartRef.current = null
     }
   }, [chartData])
 
