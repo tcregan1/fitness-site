@@ -1,6 +1,5 @@
 import type { Metadata } from 'next'
 import { DM_Sans, DM_Mono, Bebas_Neue } from 'next/font/google'
-import Navbar from '@/components/Navbar'
 import './globals.css'
 
 const dmSans = DM_Sans({
@@ -30,7 +29,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${dmSans.variable} ${dmMono.variable} ${bebasNeue.variable}`}>
       <body>
-        <Navbar />
         <div className="page-wrap">
           {children}
         </div>

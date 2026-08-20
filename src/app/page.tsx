@@ -1,17 +1,14 @@
-import Dashboard from '@/components/Dashboard'
-import { getFitnessData } from '@/lib/sheets'
-import { computeStreak, computeVolumeBalance } from '@/lib/insights'
+import { getFitnessData } from '@/lib/data'
+import LiftGraphs from '@/components/LiftGraphs'
 
-export const revalidate = 300
+export const revalidate = 60
 
 export default async function Home() {
-  const data          = await getFitnessData()
-  const streak        = computeStreak(data.workouts)
-  const volumeBalance = computeVolumeBalance(data.workouts, data.sets)
+  const { workouts, exercises, sets } = await getFitnessData()
 
   return (
     <main>
-      <Dashboard data={data} streak={streak} volumeBalance={volumeBalance} />
+      <LiftGraphs workouts={workouts} exercises={exercises} sets={sets} />
     </main>
   )
 }
