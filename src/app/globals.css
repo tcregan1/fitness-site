@@ -214,6 +214,44 @@ body {
   color: var(--text-tertiary);
 }
 
+/* ── Upload workout ──────────────────────────────── */
+.upload-workout {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.upload-workout-input { display: none; }
+
+.upload-workout-button {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--bg);
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: opacity 0.12s;
+}
+
+.upload-workout-button:hover { opacity: 0.85; }
+.upload-workout-button:disabled { opacity: 0.5; cursor: default; }
+
+.upload-workout-status {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  max-width: 420px;
+}
+
+.upload-workout-status--ok { color: var(--accent-legs); }
+.upload-workout-status--error { color: #e0655c; }
+
 /* ── Responsive ──────────────────────────────────── */
 @media (max-width: 700px) {
   .page-wrap           { padding: 16px; }

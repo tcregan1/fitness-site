@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { Chart, registerables } from 'chart.js'
 import type { Workout, ExerciseSet, Exercise } from '@/lib/data'
+import UploadWorkout from '@/components/UploadWorkout'
 
 Chart.register(...registerables)
 
@@ -278,6 +279,7 @@ export default function LiftGraphs({ workouts, sets, exercises }: LiftGraphsProp
     <div className="page-content">
       <div className="insights-top-bar">
         <h1 className="insights-page-title">Lift Progress</h1>
+        <UploadWorkout />
       </div>
 
       {CATEGORY_ORDER.map(cat => (

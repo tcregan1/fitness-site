@@ -14,3 +14,18 @@ export function getSupabaseServerClient() {
     auth: { persistSession: false },
   })
 }
+
+// Uses the secret key, which bypasses RLS. Only ever call this from server-only
+// code (API routes), never from a client component — this key must not reach the browser.
+export function getSupabaseAdminClient() {
+  const url = process.env.SUPABASE_URL
+  const key = process.env.SUPABASE_SECRET_KEY
+
+  if (!url || !key) {
+    throw new Error('Missing SUPABASE_URL or SUPABASE_SECRET_KEY env vars')
+  }
+
+  return createClient(url, key, {
+    auth: { persistSession: false },
+  })
+}
