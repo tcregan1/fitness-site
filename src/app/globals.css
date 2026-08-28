@@ -200,7 +200,7 @@ body {
 .graph-chart-area { width: 100%; }
 
 .graph-canvas-wrap { position: relative; height: 140px; width: 100%; }
-.graph-canvas-wrap canvas { width: 100% !important; height: 100% !important; }
+.graph-canvas-wrap canvas { width: 100% !important; height: 100% !important; cursor: pointer; }
 
 .graph-empty {
   display: flex;
@@ -251,6 +251,74 @@ body {
 
 .upload-workout-status--ok { color: var(--accent-legs); }
 .upload-workout-status--error { color: #e0655c; }
+
+/* ── Volume page ─────────────────────────────────── */
+.volume-title-group {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.volume-back-button {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid var(--border-mid);
+  border-radius: var(--radius-sm);
+  padding: 7px 12px;
+  cursor: pointer;
+  transition: color 0.12s, border-color 0.12s;
+}
+
+.volume-back-button:hover { color: var(--text-primary); border-color: var(--accent); }
+
+.volume-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 20px;
+}
+
+.volume-table-wrap { overflow-x: auto; }
+
+.volume-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.volume-table th {
+  text-align: left;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  padding: 0 14px 10px 0;
+  border-bottom: 1px solid var(--border-mid);
+}
+
+.volume-table td {
+  padding: 10px 14px 10px 0;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-primary);
+}
+
+.volume-table tr:last-child td { border-bottom: none; }
+
+.volume-table-date {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
 
 /* ── Responsive ──────────────────────────────────── */
 @media (max-width: 700px) {

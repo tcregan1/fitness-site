@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
 import { Chart, registerables } from 'chart.js'
 import type { Workout, ExerciseSet, Exercise } from '@/lib/data'
 import UploadWorkout from '@/components/UploadWorkout'
@@ -100,11 +101,14 @@ function ExerciseGraph({
   exercise,
   series,
   accent,
+  category,
 }: {
   exercise: Exercise
   series: SeriesPoint[]
   accent: string
+  category: Category
 }) {
+  const router = useRouter()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const chartRef = useRef<Chart | null>(null)
 
@@ -124,6 +128,7 @@ function ExerciseGraph({
           backgroundColor: accent + '15',
           borderWidth: 2,
           pointRadius: 4,
+          pointHitRadius: 10,
           pointBackgroundColor: accent,
           pointBorderColor: '#0e0e0c',
           pointBorderWidth: 1.5,
@@ -134,6 +139,9 @@ function ExerciseGraph({
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        onClick: (_evt, elements) => {
+          if (elements.length > 0) router.push(`/exercise/${exercise.id}?category=${category}`)
+        },
         plugins: {
           legend: { display: false },
           tooltip: { callbacks: { label: ctx => ` ${ctx.raw} kg` } },
@@ -156,7 +164,7 @@ function ExerciseGraph({
     })
 
     return () => { chartRef.current?.destroy() }
-  }, [series, accent])
+  }, [series, accent, exercise.id, category, router])
 
   const pr = series.length ? Math.max(...series.map(p => p.value)) : null
 
@@ -239,7 +247,7 @@ function CategorySection({
           <div className="graph-empty">No lifts match these filters</div>
         ) : (
           cards.map(({ exercise, series }) => (
-            <ExerciseGraph key={exercise.id} exercise={exercise} series={series} accent={accent} />
+            <ExerciseGraph key={exercise.id} exercise={exercise} series={series} accent={accent} category={category} />
           ))
         )}
       </div>
