@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Chart, registerables } from 'chart.js'
 import type { Workout, ExerciseSet, Exercise } from '@/lib/data'
 import UploadWorkout from '@/components/UploadWorkout'
+import LlmExport from '@/components/LlmExport'
 
 Chart.register(...registerables)
 
@@ -360,6 +361,8 @@ export default function LiftGraphs({ workouts, sets, exercises }: LiftGraphsProp
           maxDate={maxDate}
         />
       ))}
+
+      <LlmExport workouts={workouts} sets={sets} exercises={exercises} />
     </div>
   )
 }
