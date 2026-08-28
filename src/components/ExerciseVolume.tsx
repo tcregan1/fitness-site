@@ -12,10 +12,6 @@ const CATEGORY_ACCENT: Record<Category, string> = {
   legs: '#8DB548',
 }
 
-function shortName(name: string) {
-  return name.replace(/\s*\(.*?\)/g, '')
-}
-
 function fmtDate(isoDate: string) {
   return new Date(isoDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
 }
@@ -70,7 +66,7 @@ export default function ExerciseVolume({ exercise, sets, workouts, category }: E
           <button type="button" className="volume-back-button" onClick={() => router.back()}>
             ← Back
           </button>
-          <h1 className="insights-page-title">{shortName(exercise.name)} — Sets</h1>
+          <h1 className="insights-page-title">{exercise.name} — Sets</h1>
         </div>
       </div>
 

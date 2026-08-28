@@ -144,12 +144,14 @@ function ExerciseGraph({
   accent,
   category,
   suggestion,
+  displayName,
 }: {
   exercise: Exercise
   series: SeriesPoint[]
   accent: string
   category: Category
   suggestion: OverloadSuggestion | null
+  displayName: string
 }) {
   const router = useRouter()
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -215,7 +217,7 @@ function ExerciseGraph({
     <div className="exercise-graph-card">
       <div className="graph-card-header">
         <div className="graph-card-title-group">
-          <p className="graph-card-title">{shortName(exercise.name)}</p>
+          <p className="graph-card-title">{displayName}</p>
           {pr !== null && <span className="graph-card-pr" style={{ color: accent }}>PR {pr}kg</span>}
         </div>
       </div>
@@ -260,12 +262,26 @@ function CategorySection({
 }) {
   const [minSessions, setMinSessions] = useState(3)
 
+  // Two exercises can share the same short name once the equipment tag is
+  // stripped (e.g. "Lateral Raise (Cable)" and "Lateral Raise (Dumbbell)"
+  // both become "Lateral Raise"). When that happens, keep the full name
+  // (including the equipment) so the cards stay distinguishable.
+  const shortNameCounts = new Map<string, number>()
+  for (const e of exercises) {
+    const sn = shortName(e.name)
+    shortNameCounts.set(sn, (shortNameCounts.get(sn) ?? 0) + 1)
+  }
+
   const cards = exercises
-    .map(e => ({
-      exercise: e,
-      series: topSetSeries(e.id, sets, workouts, minDate, maxDate),
-      suggestion: getOverloadSuggestion(e, sets, workouts),
-    }))
+    .map(e => {
+      const sn = shortName(e.name)
+      return {
+        exercise: e,
+        series: topSetSeries(e.id, sets, workouts, minDate, maxDate),
+        suggestion: getOverloadSuggestion(e, sets, workouts),
+        displayName: (shortNameCounts.get(sn) ?? 0) > 1 ? e.name : sn,
+      }
+    })
     .filter(({ series }) => series.length > minSessions)
 
   const idPrefix = `${category}`
@@ -298,7 +314,7 @@ function CategorySection({
         {cards.length === 0 ? (
           <div className="graph-empty">No lifts match these filters</div>
         ) : (
-          cards.map(({ exercise, series, suggestion }) => (
+          cards.map(({ exercise, series, suggestion, displayName }) => (
             <ExerciseGraph
               key={exercise.id}
               exercise={exercise}
@@ -306,6 +322,7 @@ function CategorySection({
               accent={accent}
               category={category}
               suggestion={suggestion}
+              displayName={displayName}
             />
           ))
         )}
