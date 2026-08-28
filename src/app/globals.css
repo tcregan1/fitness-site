@@ -11,6 +11,8 @@
   --accent-pull:   #4A9ECC;
   /* Kevlar olive — legs */
   --accent-legs:   #8DB548;
+  /* Muted violet — overload suggestion notice */
+  --accent-notify: #A78BE0;
 
   --font-sans:     'DM Sans', system-ui, sans-serif;
   --font-mono:     'DM Mono', 'Courier New', monospace;
@@ -197,6 +199,18 @@ body {
 
 .graph-card-pr { font-size: 11px; font-family: var(--font-mono); font-weight: 500; opacity: 0.9; }
 
+.graph-card-suggestion {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--accent-notify);
+  background: rgba(167,139,224,0.12);
+  border: 1px solid rgba(167,139,224,0.35);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  margin-bottom: 12px;
+}
+
 .graph-chart-area { width: 100%; }
 
 .graph-canvas-wrap { position: relative; height: 140px; width: 100%; }
@@ -231,8 +245,8 @@ body {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--bg);
-  background: var(--accent);
-  border: 1px solid var(--accent);
+  background: var(--accent-notify);
+  border: 1px solid var(--accent-notify);
   border-radius: var(--radius-sm);
   padding: 8px 14px;
   cursor: pointer;

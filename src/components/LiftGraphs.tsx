@@ -95,6 +95,46 @@ function topSetSeries(
     .map(w => ({ date: w.date, label: fmtDate(w.date), value: bestByWorkout.get(w.id)! }))
 }
 
+// ── Progressive overload suggestion ─────────────────────────────────────────
+// Looks only at the most recent session for the exercise. "Working sets" are
+// whichever sets were done at that session's heaviest weight — lighter warm-up
+// sets (e.g. a squat's 20/40kg ramp before the 60kg working sets) don't count.
+// Cable/machine exercises get a higher rep target (12) than free-weight
+// compounds (8), since they're typically trained in a higher rep range.
+// Bodyweight-only exercises (no external weight ever logged) are skipped —
+// "add weight" doesn't apply to them.
+
+interface OverloadSuggestion {
+  weight: number
+  threshold: number
+}
+
+function getOverloadSuggestion(
+  exercise: Exercise,
+  sets: ExerciseSet[],
+  workouts: Workout[],
+): OverloadSuggestion | null {
+  const exerciseSets = sets.filter(s => s.exerciseId === exercise.id)
+  if (exerciseSets.length === 0) return null
+
+  const workoutIds = new Set(exerciseSets.map(s => s.workoutId))
+  const latestWorkout = workouts
+    .filter(w => workoutIds.has(w.id))
+    .sort((a, b) => b.date.localeCompare(a.date))[0]
+  if (!latestWorkout) return null
+
+  const lastSessionSets = exerciseSets.filter(s => s.workoutId === latestWorkout.id)
+  const heaviestWeight = Math.max(...lastSessionSets.map(s => s.weight))
+  if (heaviestWeight <= 0) return null
+
+  const workingSets = lastSessionSets.filter(s => s.weight === heaviestWeight)
+  const threshold = /\(cable\)/i.test(exercise.name) ? 12 : 8
+
+  if (!workingSets.every(s => s.reps >= threshold)) return null
+
+  return { weight: heaviestWeight, threshold }
+}
+
 // ── Individual graph card ───────────────────────────────────────────────────
 
 function ExerciseGraph({
@@ -102,11 +142,13 @@ function ExerciseGraph({
   series,
   accent,
   category,
+  suggestion,
 }: {
   exercise: Exercise
   series: SeriesPoint[]
   accent: string
   category: Category
+  suggestion: OverloadSuggestion | null
 }) {
   const router = useRouter()
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -176,6 +218,11 @@ function ExerciseGraph({
           {pr !== null && <span className="graph-card-pr" style={{ color: accent }}>PR {pr}kg</span>}
         </div>
       </div>
+      {suggestion && (
+        <div className="graph-card-suggestion">
+          ⬆ {suggestion.threshold}+ reps on every set @ {suggestion.weight}kg — try adding weight next time
+        </div>
+      )}
       <div className="graph-chart-area">
         {series.length === 0 ? (
           <div className="graph-empty">No data for this range</div>
@@ -213,7 +260,11 @@ function CategorySection({
   const [minSessions, setMinSessions] = useState(3)
 
   const cards = exercises
-    .map(e => ({ exercise: e, series: topSetSeries(e.id, sets, workouts, minDate, maxDate) }))
+    .map(e => ({
+      exercise: e,
+      series: topSetSeries(e.id, sets, workouts, minDate, maxDate),
+      suggestion: getOverloadSuggestion(e, sets, workouts),
+    }))
     .filter(({ series }) => series.length > minSessions)
 
   const idPrefix = `${category}`
@@ -246,8 +297,15 @@ function CategorySection({
         {cards.length === 0 ? (
           <div className="graph-empty">No lifts match these filters</div>
         ) : (
-          cards.map(({ exercise, series }) => (
-            <ExerciseGraph key={exercise.id} exercise={exercise} series={series} accent={accent} category={category} />
+          cards.map(({ exercise, series, suggestion }) => (
+            <ExerciseGraph
+              key={exercise.id}
+              exercise={exercise}
+              series={series}
+              accent={accent}
+              category={category}
+              suggestion={suggestion}
+            />
           ))
         )}
       </div>
