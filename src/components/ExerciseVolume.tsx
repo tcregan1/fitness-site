@@ -17,7 +17,7 @@ function fmtDate(isoDate: string) {
 }
 
 function fmtSet(set: ExerciseSet) {
-  return set.weight > 0 ? `${set.weight}×${set.reps}` : `${set.reps} reps`
+  return set.weight !== 0 ? `${set.weight}×${set.reps}` : `${set.reps} reps`
 }
 
 interface SessionRow {

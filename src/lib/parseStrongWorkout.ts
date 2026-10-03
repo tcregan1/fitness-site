@@ -32,9 +32,10 @@ function parseDate(line: string): string {
 function parseSetLine(line: string): ParsedSet {
   const rest = line.replace(/^Set\s+\d+:\s*/i, '').trim()
 
-  const weighted = rest.match(/^([\d.]+)\s*kg\s*[x×]\s*(\d+)/i)
+  // Assisted exercises export a negative weight with a Unicode minus: "−35 kg × 12"
+  const weighted = rest.match(/^([-−]?[\d.]+)\s*kg\s*[x×]\s*(\d+)/i)
   if (weighted) {
-    return { weight: parseFloat(weighted[1]), reps: parseInt(weighted[2], 10) }
+    return { weight: parseFloat(weighted[1].replace('−', '-')), reps: parseInt(weighted[2], 10) }
   }
 
   const bodyweight = rest.match(/^(\d+)\s*reps?$/i)
@@ -57,7 +58,12 @@ export function parseStrongWorkoutText(raw: string): ParsedWorkout {
 
   const exercises: ParsedExercise[] = []
   for (const block of blocks.slice(1)) {
-    const lines = block.split('\n').map(l => l.trim()).filter(l => l && !/^https?:\/\//i.test(l))
+    // A block starting with "Notes:" is a free-text note (possibly multi-line) — skip it entirely
+    if (/^notes?:/i.test(block)) continue
+    const lines = block
+      .split('\n')
+      .map(l => l.trim())
+      .filter(l => l && !/^https?:\/\//i.test(l) && !/^notes?:/i.test(l))
     if (lines.length === 0) continue
     const [name, ...setLines] = lines
     const sets = setLines.map(parseSetLine)
